@@ -1,6 +1,8 @@
 """
 PR Review Bot — Webhook Server
-Слушает события GitHub, делает AI review PR'ов.
+Триггеры:
+  - PR opened / synchronize / reopened → авто-ревью
+  - Комментарий "/review" в PR → ревью по запросу
 """
 
 import hashlib
@@ -23,8 +25,9 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY   = os.environ.get("GROQ_API_KEY")
 PORT           = int(os.environ.get("PORT", 8080))
 MAX_DIFF_CHARS = 14_000
+TRIGGER_COMMAND = "/review"  # команда в комментарии для запуска ревью
 
-# ─── Логирование (stdout — подхватывается Docker) ─────────────────────────────
+# ─── Логирование ──────────────────────────────────────────────────────────────
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +37,7 @@ log = logging.getLogger("pr-review-bot")
 
 app = Flask(__name__)
 
-# ─── Безопасность: проверка подписи GitHub ────────────────────────────────────
+# ─── Безопасность ─────────────────────────────────────────────────────────────
 
 def verify_signature(payload: bytes, sig_header: str) -> bool:
     if not sig_header or not sig_header.startswith("sha256="):
@@ -59,11 +62,28 @@ def get_pr_diff(repo: str, pr_number: int) -> str:
     return diff
 
 
+def get_pr_for_issue(repo: str, issue_number: int) -> dict | None:
+    """Проверяет, является ли issue pull request'ом и возвращает его данные."""
+    url = f"https://api.github.com/repos/{repo}/pulls/{issue_number}"
+    resp = requests.get(url, headers=GH, timeout=20)
+    if resp.status_code == 404:
+        return None
+    resp.raise_for_status()
+    return resp.json()
+
+
 def post_comment(repo: str, pr_number: int, body: str) -> None:
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     resp = requests.post(url, headers=GH, json={"body": body}, timeout=20)
     resp.raise_for_status()
     log.info("Comment posted: %s", resp.json()["html_url"])
+
+
+def add_reaction(repo: str, comment_id: int, reaction: str = "eyes") -> None:
+    """Ставит реакцию на комментарий — даёт понять что бот увидел команду."""
+    url = f"https://api.github.com/repos/{repo}/issues/comments/{comment_id}/reactions"
+    requests.post(url, headers={**GH, "Accept": "application/vnd.github.squirrel-girl-preview+json"},
+                  json={"content": reaction}, timeout=10)
 
 # ─── Промпт ───────────────────────────────────────────────────────────────────
 
@@ -99,12 +119,10 @@ def build_prompt(title: str, diff: str) -> str:
 
 def ai_review(title: str, diff: str) -> str:
     if GEMINI_API_KEY:
-        log.info("Using Gemini Flash...")
         return _gemini(title, diff)
     if GROQ_API_KEY:
-        log.info("Using Groq (Llama 3.3 70B)...")
         return _groq(title, diff)
-    raise RuntimeError("No AI API key configured (GEMINI_API_KEY or GROQ_API_KEY)")
+    raise RuntimeError("No AI API key configured")
 
 
 def _gemini(title: str, diff: str) -> str:
@@ -143,20 +161,19 @@ def _groq(title: str, diff: str) -> str:
 # ─── Логика ревью ─────────────────────────────────────────────────────────────
 
 def process_pr(repo: str, pr_number: int, title: str) -> None:
-    log.info("Processing PR #%d in %s: %s", pr_number, repo, title)
+    log.info("Processing PR #%d in %s", pr_number, repo)
     try:
         diff = get_pr_diff(repo, pr_number)
         if not diff.strip():
             log.info("Empty diff, skipping.")
             return
-        log.info("Diff size: %d chars", len(diff))
         review = ai_review(title, diff)
         post_comment(repo, pr_number, review)
         log.info("Done PR #%d", pr_number)
     except Exception as e:
-        log.error("Error processing PR #%d: %s", pr_number, e, exc_info=True)
+        log.error("Error on PR #%d: %s", pr_number, e, exc_info=True)
         try:
-            post_comment(repo, pr_number, f"⚠️ AI Review Bot encountered an error: `{e}`")
+            post_comment(repo, pr_number, f"⚠️ AI Review Bot error: `{e}`")
         except Exception:
             pass
 
@@ -164,28 +181,61 @@ def process_pr(repo: str, pr_number: int, title: str) -> None:
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    # Проверка подписи
     sig = request.headers.get("X-Hub-Signature-256", "")
     if not verify_signature(request.data, sig):
-        log.warning("Invalid webhook signature from %s", request.remote_addr)
+        log.warning("Invalid signature from %s", request.remote_addr)
         abort(403)
 
     event = request.headers.get("X-GitHub-Event", "")
-    if event != "pull_request":
-        return jsonify({"status": "ignored", "event": event}), 200
+    data  = request.json
 
-    data   = request.json
-    action = data.get("action", "")
-    if action not in ("opened", "synchronize", "reopened"):
-        return jsonify({"status": "ignored", "action": action}), 200
+    # ── Событие: Pull Request (авто-ревью) ────────────────────────
+    if event == "pull_request":
+        action = data.get("action", "")
+        if action not in ("opened", "synchronize", "reopened"):
+            return jsonify({"status": "ignored", "action": action}), 200
 
-    repo      = data["repository"]["full_name"]
-    pr_number = data["pull_request"]["number"]
-    title     = data["pull_request"]["title"]
+        repo      = data["repository"]["full_name"]
+        pr_number = data["pull_request"]["number"]
+        title     = data["pull_request"]["title"]
 
-    log.info("PR event: action=%s repo=%s pr=#%d", action, repo, pr_number)
-    threading.Thread(target=process_pr, args=(repo, pr_number, title), daemon=True).start()
+        log.info("Auto-review: %s PR #%d action=%s", repo, pr_number, action)
+        threading.Thread(target=process_pr, args=(repo, pr_number, title), daemon=True).start()
+        return jsonify({"status": "processing", "pr": pr_number}), 202
 
-    return jsonify({"status": "processing", "pr": pr_number}), 202
+    # ── Событие: Issue Comment (ревью по команде /review) ─────────
+    if event == "issue_comment":
+        action  = data.get("action", "")
+        comment = data.get("comment", {})
+        issue   = data.get("issue", {})
+
+        # Только новые комментарии с командой /review
+        if action != "created":
+            return jsonify({"status": "ignored"}), 200
+
+        body = comment.get("body", "").strip()
+        if not body.startswith(TRIGGER_COMMAND):
+            return jsonify({"status": "ignored", "reason": "not a command"}), 200
+
+        # Проверяем что это PR, а не обычный issue
+        if "pull_request" not in issue:
+            return jsonify({"status": "ignored", "reason": "not a PR"}), 200
+
+        repo       = data["repository"]["full_name"]
+        pr_number  = issue["number"]
+        title      = issue["title"]
+        comment_id = comment["id"]
+
+        log.info("Manual review requested: %s PR #%d", repo, pr_number)
+
+        # Реакция 👀 — бот увидел команду
+        add_reaction(repo, comment_id, "eyes")
+
+        threading.Thread(target=process_pr, args=(repo, pr_number, title), daemon=True).start()
+        return jsonify({"status": "processing", "pr": pr_number}), 202
+
+    return jsonify({"status": "ignored", "event": event}), 200
 
 
 @app.route("/health", methods=["GET"])
