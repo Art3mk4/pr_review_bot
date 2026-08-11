@@ -32,6 +32,7 @@ def test_omniroute_client_review(ai_client: OmniRouteClient) -> None:
     assert body["model"] == "kr/qwen3-coder-next"
     assert body["temperature"] == 0.3
     assert body["max_tokens"] == 2048
+    assert body["stream"] is False
     assert body["messages"][0]["role"] == "system"
     assert body["messages"][1]["role"] == "user"
 

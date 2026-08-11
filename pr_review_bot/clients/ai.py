@@ -75,6 +75,7 @@ class OmniRouteClient:
             ],
             "max_tokens": max_tokens,
             "temperature": 0.3,
+            "stream": False,
         }
         resp = self._session.post(
             url,
