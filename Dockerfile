@@ -1,13 +1,25 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY pr_review_bot ./pr_review_bot
 COPY server.py .
 
-RUN useradd --system --no-create-home bot && chown bot /app
+FROM base AS test
+
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+COPY tests ./tests
+
+CMD ["pytest", "-q"]
+
+FROM base AS production
+
+RUN useradd --system --no-create-home bot && chown -R bot /app
 USER bot
 
 EXPOSE 8080
