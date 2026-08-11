@@ -53,7 +53,7 @@ Configuration is read from environment variables, normally placed in `.env`:
 - `WEBHOOK_SECRET` — shared secret used to verify GitHub webhook HMAC signatures.
 - `OMNIROUTE_BASE_URL` — base URL of the OmniRoute API endpoint; defaults to `https://omniroute.io/v1`.
 - `OMNIROUTE_API_KEY` — API key for OmniRoute.
-- `OMNIROUTE_MODEL` — model identifier; defaults to `kr/qwen3-code-next`.
+- `OMNIROUTE_MODEL` — model identifier; defaults to `kr/qwen3-coder-next`.
 - `PORT` — server port; defaults to `8080`.
 - `MAX_DIFF_CHARS` — diff truncation threshold; defaults to `14000`.
 - `THREAD_POOL_WORKERS` — number of background review workers; defaults to `4`.

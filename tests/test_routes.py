@@ -136,4 +136,4 @@ class TestHealth:
             data = resp.get_json()
             assert data["status"] == "ok"
             assert data["ai"] == "omniroute"
-            assert data["model"] == "kr/qwen3-code-next"
+            assert data["model"] == "kr/qwen3-coder-next"

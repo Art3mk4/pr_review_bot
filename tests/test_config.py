@@ -16,8 +16,8 @@ def test_load_config_from_explicit_dict() -> None:
     assert cfg.github_token == "ghp_x"
     assert cfg.webhook_secret == "secret"
     assert cfg.omniroute_api_key == "sk_y"
-    assert cfg.omniroute_base_url == "https://omniroute.io/v1"
-    assert cfg.omniroute_model == "kr/qwen3-code-next"
+    assert cfg.omniroute_base_url == "https://omniroute.art3mk4.site/v1"
+    assert cfg.omniroute_model == "kr/qwen3-coder-next"
     assert cfg.port == 8080
     assert cfg.max_diff_chars == 14_000
 
@@ -82,4 +82,4 @@ def test_config_defaults() -> None:
         webhook_secret="b",
         omniroute_api_key="c",
     )
-    assert cfg.omniroute_model == "kr/qwen3-code-next"
+    assert cfg.omniroute_model == "kr/qwen3-coder-next"

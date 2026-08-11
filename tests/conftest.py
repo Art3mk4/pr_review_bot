@@ -14,7 +14,7 @@ def config() -> Config:
         webhook_secret="test_secret",
         omniroute_api_key="sk_test_key",
         omniroute_base_url="https://omniroute.test/v1",
-        omniroute_model="kr/qwen3-code-next",
+        omniroute_model="kr/qwen3-coder-next",
         port=8080,
         max_diff_chars=14_000,
         trigger_command="/review",

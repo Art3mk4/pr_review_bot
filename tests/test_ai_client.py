@@ -29,7 +29,7 @@ def test_omniroute_client_review(ai_client: OmniRouteClient) -> None:
     assert result == "Great PR!"
     req = responses.calls[0].request
     body = json.loads(req.body)
-    assert body["model"] == "kr/qwen3-code-next"
+    assert body["model"] == "kr/qwen3-coder-next"
     assert body["temperature"] == 0.3
     assert body["max_tokens"] == 2048
     assert body["messages"][0]["role"] == "system"

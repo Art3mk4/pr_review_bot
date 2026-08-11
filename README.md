@@ -6,7 +6,7 @@
 - `pull_request`: `opened`, `synchronize`, `reopened` — автоматический обзор.
 - `issue_comment`: новый комментарий с текстом `/review` — обзор по запросу.
 
-Для генерации ревью используется OmniRoute (OpenAI-compatible API). По умолчанию модель — `kr/qwen3-code-next`.
+Для генерации ревью используется OmniRoute (OpenAI-compatible API). По умолчанию модель — `kr/qwen3-coder-next`.
 
 ---
 
@@ -35,7 +35,7 @@ curl http://localhost:8080/health
 Ожидаемый ответ:
 
 ```json
-{"ai":"omniroute","model":"kr/qwen3-code-next","status":"ok"}
+{"ai":"omniroute","model":"kr/qwen3-coder-next","status":"ok"}
 ```
 
 ---
@@ -98,7 +98,7 @@ GITHUB_TOKEN=ghp_xxxxxxxxx
 WEBHOOK_SECRET=your_random_secret
 OMNIROUTE_BASE_URL=https://omniroute.io/v1
 OMNIROUTE_API_KEY=sk-xxxxxxxxxxxx
-OMNIROUTE_MODEL=kr/qwen3-code-next
+OMNIROUTE_MODEL=kr/qwen3-coder-next
 PORT=8080
 ```
 
@@ -108,7 +108,7 @@ PORT=8080
 | `WEBHOOK_SECRET` | Секрет для проверки подписи вебхуков | — |
 | `OMNIROUTE_BASE_URL` | Базовый URL OmniRoute | `https://omniroute.io/v1` |
 | `OMNIROUTE_API_KEY` | API-ключ OmniRoute | — |
-| `OMNIROUTE_MODEL` | Модель для code review | `kr/qwen3-code-next` |
+| `OMNIROUTE_MODEL` | Модель для code review | `kr/qwen3-coder-next` |
 | `PORT` | Порт внутри контейнера | `8080` |
 
 ---
