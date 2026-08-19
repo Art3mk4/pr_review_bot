@@ -10,7 +10,7 @@ from flask import Flask, abort, jsonify, request
 from pr_review_bot.clients.ai import OmniRouteClient
 from pr_review_bot.clients.github import GitHubClient
 from pr_review_bot.config import Config, load_config
-from pr_review_bot.services.review import submit_review
+from pr_review_bot.services.review import ReviewGate, submit_review
 from pr_review_bot.webhook.handlers import handle_issue_comment, handle_pull_request
 from pr_review_bot.webhook.security import verify_signature
 
@@ -40,6 +40,8 @@ def create_app(
         )
         atexit.register(executor.shutdown, wait=True)
 
+    review_gate = ReviewGate()
+
     def _submit_review(repo: str, pr_number: int, title: str) -> None:
         submit_review(
             repo,
@@ -49,6 +51,7 @@ def create_app(
             github_client=github_client,
             ai_client=ai_client,
             executor=executor,
+            gate=review_gate,
         )
 
     app = Flask(__name__)

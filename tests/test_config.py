@@ -20,6 +20,7 @@ def test_load_config_from_explicit_dict() -> None:
     assert cfg.omniroute_model == "kr/qwen3-coder-next"
     assert cfg.port == 8080
     assert cfg.max_diff_chars == 14_000
+    assert cfg.log_level == "INFO"
 
 
 def test_load_config_validates_missing_github_token() -> None:

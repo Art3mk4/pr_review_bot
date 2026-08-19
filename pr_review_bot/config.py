@@ -24,6 +24,7 @@ class Config:
     max_diff_chars: int = 14_000
     trigger_command: str = "/review"
     thread_pool_workers: int = 4
+    log_level: str = "INFO"
 
     def __post_init__(self) -> None:
         """Validate fields after initialization."""
@@ -73,6 +74,7 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         max_diff_chars=max_diff_chars,
         trigger_command=env.get("TRIGGER_COMMAND", "/review"),
         thread_pool_workers=int(env.get("THREAD_POOL_WORKERS", "4")),
+        log_level=env.get("LOG_LEVEL", "INFO"),
     )
 
 

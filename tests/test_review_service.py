@@ -1,9 +1,11 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock
 
 import pytest
 import responses
 
-from pr_review_bot.services.review import process_pr
+from pr_review_bot.services.review import ReviewGate, process_pr, submit_review
 
 
 @responses.activate
@@ -96,3 +98,58 @@ def test_process_pr_posts_safe_error_on_ai_failure(config, github_client, ai_cli
     for call in responses.calls:
         if call.request.method == "POST" and b"comments" in call.request.url.encode():
             assert b"AI Review Bot failed" in call.request.body
+
+
+def test_review_gate_blocks_reacquire_until_released() -> None:
+    gate = ReviewGate()
+    assert gate.try_acquire("owner/repo", 1) is True
+    assert gate.try_acquire("owner/repo", 1) is False
+    # A different PR is unaffected.
+    assert gate.try_acquire("owner/repo", 2) is True
+
+    gate.release("owner/repo", 1)
+    assert gate.try_acquire("owner/repo", 1) is True
+
+
+def test_submit_review_skips_duplicate_while_in_flight(monkeypatch, config, github_client, ai_client) -> None:
+    calls = []
+    started = threading.Event()
+    proceed = threading.Event()
+
+    def fake_process_pr(repo, pr_number, title, *, config, github_client, ai_client):
+        calls.append((repo, pr_number))
+        started.set()
+        assert proceed.wait(timeout=2), "test deadlocked waiting for release"
+
+    monkeypatch.setattr("pr_review_bot.services.review.process_pr", fake_process_pr)
+
+    gate = ReviewGate()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        submit_review(
+            "owner/repo",
+            1,
+            "title",
+            config=config,
+            github_client=github_client,
+            ai_client=ai_client,
+            executor=executor,
+            gate=gate,
+        )
+        assert started.wait(timeout=2), "first review never started"
+
+        # Fired while the first review is still in flight: must be skipped.
+        submit_review(
+            "owner/repo",
+            1,
+            "title",
+            config=config,
+            github_client=github_client,
+            ai_client=ai_client,
+            executor=executor,
+            gate=gate,
+        )
+        proceed.set()
+
+    assert calls == [("owner/repo", 1)]
+    # The gate must release after completion so a later, separate event can run.
+    assert gate.try_acquire("owner/repo", 1) is True

@@ -77,12 +77,7 @@ class OmniRouteClient:
             "temperature": 0.3,
             "stream": False,
         }
-        resp = self._session.post(
-            url,
-            json=payload,
-            timeout=self._timeout,
-            headers={"Authorization": f"Bearer {self._api_key}"},
-        )
+        resp = self._session.post(url, json=payload, timeout=self._timeout)
         try:
             resp.raise_for_status()
         except requests.HTTPError as exc:

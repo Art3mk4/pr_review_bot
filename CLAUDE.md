@@ -22,6 +22,10 @@ pip install -r requirements.txt -r requirements-dev.txt
 # Run tests
 pytest -q
 
+# Run a single test file or test
+pytest tests/test_review_service.py -q
+pytest tests/test_review_service.py::test_process_pr_posts_comment -q
+
 # Run the development server
 python server.py
 ```
@@ -51,12 +55,14 @@ Configuration is read from environment variables, normally placed in `.env`:
 
 - `GITHUB_TOKEN` — GitHub Personal Access Token with repo read and pull request comment access.
 - `WEBHOOK_SECRET` — shared secret used to verify GitHub webhook HMAC signatures.
-- `OMNIROUTE_BASE_URL` — base URL of the OmniRoute API endpoint; defaults to `https://omniroute.io/v1`.
+- `OMNIROUTE_BASE_URL` — base URL of the OmniRoute API endpoint; defaults to `https://omniroute.art3mk4.site/v1`.
 - `OMNIROUTE_API_KEY` — API key for OmniRoute.
 - `OMNIROUTE_MODEL` — model identifier; defaults to `kr/qwen3-coder-next`.
 - `PORT` — server port; defaults to `8080`.
 - `MAX_DIFF_CHARS` — diff truncation threshold; defaults to `14000`.
 - `THREAD_POOL_WORKERS` — number of background review workers; defaults to `4`.
+- `TRIGGER_COMMAND` — comment prefix that triggers a manual review; defaults to `/review`.
+- `LOG_LEVEL` — Python logging level applied via `logging.basicConfig()` in `server.py`; defaults to `INFO`.
 
 The `env.example` file (larger file) documents how to obtain each credential; `.env.example` is a shorter version. Use `env.example` as the starting point.
 
@@ -88,7 +94,7 @@ The code is organized as a Python package `pr_review_bot/`, with `server.py` rem
 
 ### Concurrency
 
-Reviews run in a bounded `ThreadPoolExecutor` so the webhook returns `202 Accepted` immediately. `thread_pool_workers` limits parallelism and helps avoid duplicate concurrent reviews of the same PR.
+Reviews run in a bounded `ThreadPoolExecutor` so the webhook returns `202 Accepted` immediately. `thread_pool_workers` limits parallelism. A `ReviewGate` (`pr_review_bot/services/review.py`) additionally tracks in-flight `(repo, pr_number)` pairs per process and skips a new review if one for the same PR is already running, so rapid duplicate events (fast pushes, webhook redelivery) don't trigger duplicate AI calls/comments. This dedup is per-process only — it does not coordinate across Gunicorn workers.
 
 ### Production run
 
