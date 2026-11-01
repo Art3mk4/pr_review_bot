@@ -62,20 +62,6 @@ class GitHubClient:
             log.info("PR #%s diff truncated to %d chars", pr_number, max_diff_chars)
         return diff
 
-    def get_pr_for_issue(self, repo: str, issue_number: int | str) -> dict | None:
-        """Return PR data if the issue is a PR, otherwise None."""
-        validate_repo(repo)
-        number = validate_pr_number(issue_number)
-        path = f"/repos/{repo}/pulls/{number}"
-        resp = self._request("GET", path)
-        if resp.status_code == 404:
-            return None
-        try:
-            resp.raise_for_status()
-        except requests.HTTPError as exc:
-            raise GitHubAPIError(f"Failed to fetch PR data: {exc}") from exc
-        return resp.json()
-
     def post_comment(self, repo: str, pr_number: int | str, body: str) -> str:
         """Post a comment on a PR and return its HTML URL."""
         validate_repo(repo)
@@ -101,13 +87,21 @@ class GitHubClient:
         except (TypeError, ValueError) as exc:
             raise ValueError(f"comment_id must be an integer, got: {comment_id!r}") from exc
         path = f"/repos/{repo}/issues/comments/{comment_id_int}/reactions"
-        resp = self._request(
-            "POST",
-            path,
-            headers={"Accept": "application/vnd.github.squirrel-girl-preview+json"},
-            json={"content": reaction},
-            timeout=min(self._timeout, 10.0),
-        )
+        # Best-effort: a missing 👀 must not fail the webhook, so log network
+        # errors (ConnectionError/Timeout) the same way non-OK statuses are.
+        try:
+            resp = self._request(
+                "POST",
+                path,
+                headers={"Accept": "application/vnd.github.squirrel-girl-preview+json"},
+                json={"content": reaction},
+                timeout=min(self._timeout, 10.0),
+            )
+        except requests.RequestException as exc:
+            log.warning(
+                "Failed to add reaction to comment %s in %s: %s", comment_id, repo, exc
+            )
+            return
         if not resp.ok:
             log.warning(
                 "Failed to add reaction to comment %s in %s: %s %s",

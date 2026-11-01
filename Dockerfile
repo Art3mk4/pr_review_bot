@@ -24,4 +24,6 @@ USER bot
 
 EXPOSE 8080
 
-CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:8080", "--timeout", "120", "server:app"]
+# graceful-timeout > the 120s AI client timeout: atexit waits for in-flight
+# reviews (executor.shutdown(wait=True)); the 30s default would SIGKILL them.
+CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:8080", "--timeout", "120", "--graceful-timeout", "130", "server:app"]
