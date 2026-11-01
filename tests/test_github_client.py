@@ -1,6 +1,7 @@
 import re
 
 import pytest
+import requests
 import responses
 
 from pr_review_bot.clients.github import GitHubAPIError, GitHubClient
@@ -77,6 +78,18 @@ def test_add_reaction(github_client: GitHubClient) -> None:
     req = responses.calls[0].request
     assert req.headers["Accept"] == "application/vnd.github.squirrel-girl-preview+json"
     assert b'"content": "eyes"' in req.body
+
+
+@responses.activate
+def test_add_reaction_swallows_network_error(github_client: GitHubClient) -> None:
+    # The eyes reaction is best-effort: a connection error must be logged,
+    # not raised, or the whole webhook turns 500 and the review is lost.
+    responses.add(
+        responses.POST,
+        "https://api.github.com/repos/owner/repo/issues/comments/123/reactions",
+        body=requests.exceptions.ConnectionError("connection reset"),
+    )
+    github_client.add_reaction("owner/repo", 123)
 
 
 def test_get_pr_diff_rejects_invalid_repo(github_client: GitHubClient) -> None:
