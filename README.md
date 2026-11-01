@@ -60,7 +60,7 @@ curl http://localhost:8080/health
 
 ### Принудительный запуск ревью
 
-Чтобы запустить ревью вручную, оставь в PR комментарий, **начинающийся с**:
+Чтобы запустить ревью вручную, оставь в PR комментарий, **первое слово в котором** — команда:
 
 ```text
 /review
@@ -72,9 +72,9 @@ curl http://localhost:8080/health
 /review пожалуйста
 ```
 
-Бот поставит реакцию 👀 и запустит AI-обзор.
+(`/reviewer needed?` командой не считается.) Бот поставит реакцию 👀 и запустит AI-обзор.
 
-> **Примечание:** команда `/review` работает только в комментариях к Pull Request'ам, но не в обычных issues.
+> **Примечание:** команда `/review` работает только в комментариях к Pull Request'ам, но не в обычных issues. Комментарии от имени ботов игнорируются — иначе два бота, вызывающие `/review` друг у друга, устроили бы лавину AI-запросов.
 
 ---
 
@@ -96,7 +96,7 @@ curl http://localhost:8080/health
 ```env
 GITHUB_TOKEN=ghp_xxxxxxxxx
 WEBHOOK_SECRET=your_random_secret
-OMNIROUTE_BASE_URL=https://omniroute.io/v1
+OMNIROUTE_BASE_URL=https://omniroute.art3mk4.site/v1
 OMNIROUTE_API_KEY=sk-xxxxxxxxxxxx
 OMNIROUTE_MODEL=kr/qwen3-coder-next
 PORT=8080
@@ -106,10 +106,10 @@ PORT=8080
 |------------|----------|--------------|
 | `GITHUB_TOKEN` | GitHub Personal Access Token | — |
 | `WEBHOOK_SECRET` | Секрет для проверки подписи вебхуков | — |
-| `OMNIROUTE_BASE_URL` | Базовый URL OmniRoute | `https://omniroute.io/v1` |
+| `OMNIROUTE_BASE_URL` | Базовый URL OmniRoute | `https://omniroute.art3mk4.site/v1` |
 | `OMNIROUTE_API_KEY` | API-ключ OmniRoute | — |
 | `OMNIROUTE_MODEL` | Модель для code review | `kr/qwen3-coder-next` |
-| `PORT` | Порт внутри контейнера | `8080` |
+| `PORT` | Порт для `python server.py`; gunicorn в контейнере всегда слушает 8080 | `8080` |
 
 ---
 
