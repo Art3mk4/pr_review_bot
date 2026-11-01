@@ -84,3 +84,49 @@ def test_config_defaults() -> None:
         omniroute_api_key="c",
     )
     assert cfg.omniroute_model == "kr/qwen3-coder-next"
+
+
+_REQUIRED = {
+    "GITHUB_TOKEN": "ghp_x",
+    "WEBHOOK_SECRET": "secret",
+    "OMNIROUTE_API_KEY": "sk_y",
+}
+
+
+@pytest.mark.parametrize("port", [0, 70000])
+def test_config_rejects_out_of_range_port(port: int) -> None:
+    with pytest.raises(ConfigurationError, match="PORT must be between 1 and 65535"):
+        Config(github_token="a", webhook_secret="b", omniroute_api_key="c", port=port)
+
+
+def test_config_rejects_non_positive_max_diff_chars() -> None:
+    with pytest.raises(ConfigurationError, match="MAX_DIFF_CHARS must be positive"):
+        Config(github_token="a", webhook_secret="b", omniroute_api_key="c", max_diff_chars=0)
+
+
+def test_config_rejects_non_positive_thread_pool_workers() -> None:
+    with pytest.raises(ConfigurationError, match="THREAD_POOL_WORKERS must be positive"):
+        Config(
+            github_token="a",
+            webhook_secret="b",
+            omniroute_api_key="c",
+            thread_pool_workers=0,
+        )
+
+
+def test_config_rejects_unknown_log_level() -> None:
+    with pytest.raises(ConfigurationError, match="LOG_LEVEL must be one of"):
+        Config(github_token="a", webhook_secret="b", omniroute_api_key="c", log_level="BOGUS")
+
+
+def test_config_normalizes_lowercase_log_level() -> None:
+    # basicConfig() would raise ValueError on "debug" at server.py import time.
+    cfg = Config(
+        github_token="a", webhook_secret="b", omniroute_api_key="c", log_level="debug"
+    )
+    assert cfg.log_level == "DEBUG"
+
+
+def test_load_config_rejects_non_integer_thread_pool_workers() -> None:
+    with pytest.raises(ConfigurationError, match="THREAD_POOL_WORKERS must be an integer"):
+        load_config({**_REQUIRED, "THREAD_POOL_WORKERS": "abc"})

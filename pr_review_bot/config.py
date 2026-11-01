@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
+_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "FATAL"}
+
 
 class ConfigurationError(ValueError):
     """Raised when required configuration is missing or invalid."""
@@ -38,6 +40,24 @@ class Config:
             raise ConfigurationError(
                 f"OMNIROUTE_BASE_URL must be a valid HTTP(S) URL, got: {self.omniroute_base_url}"
             )
+        if not 1 <= self.port <= 65535:
+            raise ConfigurationError(f"PORT must be between 1 and 65535, got: {self.port}")
+        if self.max_diff_chars <= 0:
+            raise ConfigurationError(
+                f"MAX_DIFF_CHARS must be positive, got: {self.max_diff_chars}"
+            )
+        if self.thread_pool_workers <= 0:
+            raise ConfigurationError(
+                f"THREAD_POOL_WORKERS must be positive, got: {self.thread_pool_workers}"
+            )
+        # logging.basicConfig() rejects lowercase names (ValueError on import
+        # of server.py), so accept them but store the canonical uppercase form.
+        normalized_level = self.log_level.upper()
+        if normalized_level not in _LOG_LEVELS:
+            raise ConfigurationError(
+                f"LOG_LEVEL must be one of {sorted(_LOG_LEVELS)}, got: {self.log_level!r}"
+            )
+        object.__setattr__(self, "log_level", normalized_level)
 
 
 def load_config(env: dict[str, str] | None = None) -> Config:
@@ -64,6 +84,14 @@ def load_config(env: dict[str, str] | None = None) -> Config:
             f"MAX_DIFF_CHARS must be an integer, got: {max_diff_chars_raw!r}"
         ) from exc
 
+    workers_raw = env.get("THREAD_POOL_WORKERS", "4")
+    try:
+        thread_pool_workers = int(workers_raw)
+    except ValueError as exc:
+        raise ConfigurationError(
+            f"THREAD_POOL_WORKERS must be an integer, got: {workers_raw!r}"
+        ) from exc
+
     return Config(
         github_token=_get_required("GITHUB_TOKEN"),
         webhook_secret=_get_required("WEBHOOK_SECRET"),
@@ -73,7 +101,7 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         port=port,
         max_diff_chars=max_diff_chars,
         trigger_command=env.get("TRIGGER_COMMAND", "/review"),
-        thread_pool_workers=int(env.get("THREAD_POOL_WORKERS", "4")),
+        thread_pool_workers=thread_pool_workers,
         log_level=env.get("LOG_LEVEL", "INFO"),
     )
 
