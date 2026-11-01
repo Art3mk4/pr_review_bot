@@ -20,7 +20,7 @@ class Config:
     github_token: str
     webhook_secret: str
     omniroute_api_key: str
-    omniroute_base_url: str = "https://omniroute.art3mk4.site/v1"
+    omniroute_base_url: str
     omniroute_model: str = "kr/qwen3-coder-next"
     port: int = 8080
     max_diff_chars: int = 14_000
@@ -96,7 +96,7 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         github_token=_get_required("GITHUB_TOKEN"),
         webhook_secret=_get_required("WEBHOOK_SECRET"),
         omniroute_api_key=_get_required("OMNIROUTE_API_KEY"),
-        omniroute_base_url=env.get("OMNIROUTE_BASE_URL", "https://omniroute.art3mk4.site/v1"),
+        omniroute_base_url=_get_required("OMNIROUTE_BASE_URL"),
         omniroute_model=env.get("OMNIROUTE_MODEL", "kr/qwen3-coder-next"),
         port=port,
         max_diff_chars=max_diff_chars,
