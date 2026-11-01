@@ -62,20 +62,6 @@ class GitHubClient:
             log.info("PR #%s diff truncated to %d chars", pr_number, max_diff_chars)
         return diff
 
-    def get_pr_for_issue(self, repo: str, issue_number: int | str) -> dict | None:
-        """Return PR data if the issue is a PR, otherwise None."""
-        validate_repo(repo)
-        number = validate_pr_number(issue_number)
-        path = f"/repos/{repo}/pulls/{number}"
-        resp = self._request("GET", path)
-        if resp.status_code == 404:
-            return None
-        try:
-            resp.raise_for_status()
-        except requests.HTTPError as exc:
-            raise GitHubAPIError(f"Failed to fetch PR data: {exc}") from exc
-        return resp.json()
-
     def post_comment(self, repo: str, pr_number: int | str, body: str) -> str:
         """Post a comment on a PR and return its HTML URL."""
         validate_repo(repo)
