@@ -110,6 +110,53 @@ class TestWebhookIssueComment:
             assert not github.add_reaction.called
 
 
+class TestMalformedPayload:
+    """Bad payloads must answer 400, not 500 — GitHub redelivers 5xx in a loop."""
+
+    def test_pull_request_missing_pull_request_key_returns_400(self, test_app) -> None:
+        app, *_ = test_app
+        with app.test_client() as client:
+            payload = '{"action":"opened","repository":{"full_name":"owner/repo"}}'.encode()
+            resp = _post(client, "pull_request", payload, "test_secret")
+            assert resp.status_code == 400
+            assert resp.get_json()["status"] == "bad payload"
+
+    def test_pull_request_non_numeric_number_returns_400(self, test_app) -> None:
+        app, *_ = test_app
+        with app.test_client() as client:
+            payload = (
+                '{"action":"opened","repository":{"full_name":"owner/repo"},'
+                '"pull_request":{"number":"x","title":"t"}}'
+            ).encode()
+            resp = _post(client, "pull_request", payload, "test_secret")
+            assert resp.status_code == 400
+            assert resp.get_json()["status"] == "bad payload"
+
+    def test_issue_comment_null_body_is_ignored_not_500(self, test_app) -> None:
+        app, *_ = test_app
+        with app.test_client() as client:
+            payload = (
+                '{"action":"created","repository":{"full_name":"owner/repo"},'
+                '"issue":{"number":7,"title":"PR","pull_request":{}},'
+                '"comment":{"id":123,"body":null}}'
+            ).encode()
+            resp = _post(client, "issue_comment", payload, "test_secret")
+            assert resp.status_code == 200
+            assert resp.get_json()["reason"] == "not a command"
+
+    def test_issue_comment_command_without_comment_id_returns_400(self, test_app) -> None:
+        app, github, *_ = test_app
+        with app.test_client() as client:
+            payload = (
+                '{"action":"created","repository":{"full_name":"owner/repo"},'
+                '"issue":{"number":7,"title":"PR","pull_request":{}},'
+                '"comment":{"body":"/review please"}}'
+            ).encode()
+            resp = _post(client, "issue_comment", payload, "test_secret")
+            assert resp.status_code == 400
+            assert not github.add_reaction.called
+
+
 class TestSecurity:
     def test_invalid_signature_returns_403(self, test_app) -> None:
         app, *_ = test_app
