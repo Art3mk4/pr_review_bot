@@ -57,7 +57,7 @@ Configuration is read from environment variables, normally placed in `.env` — 
 
 - `GITHUB_TOKEN` — GitHub Personal Access Token with repo read and pull request comment access.
 - `WEBHOOK_SECRET` — shared secret used to verify GitHub webhook HMAC signatures.
-- `OMNIROUTE_BASE_URL` — base URL of the OmniRoute API endpoint; defaults to `https://omniroute.art3mk4.site/v1`.
+- `OMNIROUTE_BASE_URL` — base URL of your OmniRoute deployment; **required, no default** (the real host is deliberately kept out of this public repo).
 - `OMNIROUTE_API_KEY` — API key for OmniRoute.
 - `OMNIROUTE_MODEL` — model identifier; defaults to `kr/qwen3-coder-next`.
 - `PORT` — port used by `python server.py`; defaults to `8080`. The Gunicorn CMD in the Dockerfile binds `0.0.0.0:8080` regardless of `PORT`.
@@ -68,7 +68,7 @@ Configuration is read from environment variables, normally placed in `.env` — 
 
 The `env.example` file (larger file) documents how to obtain each credential; `.env.example` is a shorter version. Use `env.example` as the starting point.
 
-`load_config()` raises `ConfigurationError` (a `ValueError` subclass) when a required variable is missing or `PORT`/`MAX_DIFF_CHARS`/`THREAD_POOL_WORKERS` is not an integer. `Config.__post_init__` enforces the remaining invariants on every construction path — port 1–65535, positive `max_diff_chars`/`thread_pool_workers`, `log_level` one of DEBUG/INFO/WARNING/ERROR/CRITICAL/FATAL — and normalizes `log_level` to uppercase, because `logging.basicConfig()` raises on lowercase names at `server.py` import time. `OMNIROUTE_BASE_URL` has trailing slashes stripped and must parse as an http(s) URL. In tests, pass an explicit dict (`load_config({...})`) instead of mutating `os.environ`.
+`load_config()` raises `ConfigurationError` (a `ValueError` subclass) when a required variable (`GITHUB_TOKEN`, `WEBHOOK_SECRET`, `OMNIROUTE_API_KEY`, `OMNIROUTE_BASE_URL`) is missing or `PORT`/`MAX_DIFF_CHARS`/`THREAD_POOL_WORKERS` is not an integer. `Config.__post_init__` enforces the remaining invariants on every construction path — port 1–65535, positive `max_diff_chars`/`thread_pool_workers`, `log_level` one of DEBUG/INFO/WARNING/ERROR/CRITICAL/FATAL — and normalizes `log_level` to uppercase, because `logging.basicConfig()` raises on lowercase names at `server.py` import time. `OMNIROUTE_BASE_URL` has trailing slashes stripped and must parse as an http(s) URL. In tests, pass an explicit dict (`load_config({...})`) instead of mutating `os.environ`.
 
 ## Architecture
 

@@ -96,7 +96,7 @@ curl http://localhost:8080/health
 ```env
 GITHUB_TOKEN=ghp_xxxxxxxxx
 WEBHOOK_SECRET=your_random_secret
-OMNIROUTE_BASE_URL=https://omniroute.art3mk4.site/v1
+OMNIROUTE_BASE_URL=https://omniroute.example.com/v1  # укажи адрес своего OmniRoute
 OMNIROUTE_API_KEY=sk-xxxxxxxxxxxx
 OMNIROUTE_MODEL=kr/qwen3-coder-next
 PORT=8080
@@ -106,7 +106,7 @@ PORT=8080
 |------------|----------|--------------|
 | `GITHUB_TOKEN` | GitHub Personal Access Token | — |
 | `WEBHOOK_SECRET` | Секрет для проверки подписи вебхуков | — |
-| `OMNIROUTE_BASE_URL` | Базовый URL OmniRoute | `https://omniroute.art3mk4.site/v1` |
+| `OMNIROUTE_BASE_URL` | Базовый URL твоего OmniRoute (обязательная) | — |
 | `OMNIROUTE_API_KEY` | API-ключ OmniRoute | — |
 | `OMNIROUTE_MODEL` | Модель для code review | `kr/qwen3-coder-next` |
 | `PORT` | Порт для `python server.py`; gunicorn в контейнере всегда слушает 8080 | `8080` |
