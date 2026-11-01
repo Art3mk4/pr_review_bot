@@ -2,8 +2,13 @@
 
 import logging
 
+from dotenv import load_dotenv
 from pr_review_bot.app import create_app
 from pr_review_bot.config import load_config
+
+# Populate os.environ from .env before load_config() reads it. In Docker the
+# file is absent (env_file injects the variables directly) and this is a no-op.
+load_dotenv()
 
 config = load_config()
 
