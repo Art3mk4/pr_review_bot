@@ -31,3 +31,9 @@ def test_verify_signature_different_secrets() -> None:
     payload = b'{"action":"opened"}'
     sig = _sign(payload, "right-secret")
     assert verify_signature(payload, sig, secret="wrong-secret") is False
+
+
+def test_verify_signature_rejects_non_ascii_header() -> None:
+    # WSGI headers are latin-1 per PEP 3333, so a crafted header can carry
+    # non-ASCII; compare_digest on str would raise TypeError (HTTP 500).
+    assert verify_signature(b'{"action":"opened"}', "sha256=café", secret="super-secret") is False
