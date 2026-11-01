@@ -96,6 +96,44 @@ class TestWebhookIssueComment:
             assert resp.get_json()["reason"] == "not a PR"
             assert not github.add_reaction.called
 
+    def test_command_prefix_that_is_not_the_command_is_ignored(self, test_app) -> None:
+        app, github, *_ = test_app
+        with app.test_client() as client:
+            payload = (
+                '{"action":"created","repository":{"full_name":"owner/repo"},'
+                '"issue":{"number":7,"title":"PR title","pull_request":{}},'
+                '"comment":{"id":123,"body":"/reviewer needed?"}}'
+            ).encode()
+            resp = _post(client, "issue_comment", payload, "test_secret")
+            assert resp.status_code == 200
+            assert resp.get_json()["reason"] == "not a command"
+            assert not github.add_reaction.called
+
+    def test_bare_review_command_triggers(self, test_app) -> None:
+        app, github, *_ = test_app
+        with app.test_client() as client:
+            payload = (
+                '{"action":"created","repository":{"full_name":"owner/repo"},'
+                '"issue":{"number":7,"title":"PR title","pull_request":{}},'
+                '"comment":{"id":123,"body":"/review"}}'
+            ).encode()
+            resp = _post(client, "issue_comment", payload, "test_secret")
+            assert resp.status_code == 202
+            assert github.add_reaction.called
+
+    def test_bot_comment_is_ignored(self, test_app) -> None:
+        app, github, *_ = test_app
+        with app.test_client() as client:
+            payload = (
+                '{"action":"created","repository":{"full_name":"owner/repo"},'
+                '"issue":{"number":7,"title":"PR title","pull_request":{}},'
+                '"comment":{"id":123,"body":"/review please","user":{"type":"Bot"}}}'
+            ).encode()
+            resp = _post(client, "issue_comment", payload, "test_secret")
+            assert resp.status_code == 200
+            assert resp.get_json()["reason"] == "bot comment"
+            assert not github.add_reaction.called
+
     def test_non_command_comment_is_ignored(self, test_app) -> None:
         app, github, *_ = test_app
         with app.test_client() as client:

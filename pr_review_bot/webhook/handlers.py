@@ -63,8 +63,16 @@ def handle_issue_comment(
         raw_body = comment.get("body")
         body = raw_body.strip() if isinstance(raw_body, str) else ""
 
-        if not body.startswith(config.trigger_command):
+        # Match the command as a whole first word, so "/reviewer needed?" or
+        # "/reviews" do not trigger a review.
+        parts = body.split()
+        if not parts or parts[0] != config.trigger_command:
             return {"status": "ignored", "reason": "not a command"}, 200
+
+        # Ignore comments written by bots: two bots echoing each other's
+        # "/review" would otherwise storm the AI endpoint with reviews.
+        if (comment.get("user") or {}).get("type") == "Bot":
+            return {"status": "ignored", "reason": "bot comment"}, 200
 
         if "pull_request" not in issue:
             return {"status": "ignored", "reason": "not a PR"}, 200
