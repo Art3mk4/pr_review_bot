@@ -72,7 +72,9 @@ def _post_safe_error(github_client: GitHubClient, repo: str, pr_number: int) -> 
     """Post a sanitized error comment; never leak secrets or tracebacks."""
     try:
         github_client.post_comment(repo, pr_number, PUBLIC_ERROR_MESSAGE)
-    except GitHubAPIError as inner:
+    except Exception as inner:
+        # Broad on purpose: a requests ConnectionError escaping here would land
+        # in an unwatched future and be swallowed without a single log line.
         log.error("Failed to post error comment for PR #%d: %s", pr_number, inner)
 
 
@@ -118,4 +120,12 @@ def submit_review(
                 gate.release(repo, pr_number)
 
     # We deliberately do not capture/return the Future so callers stay fire-and-forget.
-    executor.submit(_run)
+    # If the pool is already shut down (worker exiting via atexit), submit raises
+    # RuntimeError and _run never executes — release the gate or this PR's future
+    # /review commands would be skipped forever.
+    try:
+        executor.submit(_run)
+    except Exception:
+        if gate is not None:
+            gate.release(repo, pr_number)
+        log.exception("Failed to submit review for %s PR #%d", repo, pr_number)

@@ -153,3 +153,26 @@ def test_submit_review_skips_duplicate_while_in_flight(monkeypatch, config, gith
     assert calls == [("owner/repo", 1)]
     # The gate must release after completion so a later, separate event can run.
     assert gate.try_acquire("owner/repo", 1) is True
+
+
+def test_submit_review_releases_gate_when_executor_rejects(
+    config, github_client, ai_client
+) -> None:
+    # Mimics a worker exiting: atexit shuts the pool down, so submit() raises
+    # RuntimeError and the worker's finally never runs.
+    executor = ThreadPoolExecutor(max_workers=1)
+    executor.shutdown(wait=True)
+
+    gate = ReviewGate()
+    submit_review(
+        "owner/repo",
+        1,
+        "title",
+        config=config,
+        github_client=github_client,
+        ai_client=ai_client,
+        executor=executor,
+        gate=gate,
+    )
+    # Fire-and-forget must not raise, and the key must not stay locked forever.
+    assert gate.try_acquire("owner/repo", 1) is True
